@@ -9,7 +9,7 @@ description: "Testing patterns and templates for Frappe/ERPNext custom apps. Use
 > If existing tests contradict this document, refactor the tests.
 > Do not invent new patterns unless explicitly required.
 
-> **Derived from a real audit of 155 test files in a production Frappe app.**
+> **Derived from a real audit of test files in a production Frappe app.**
 > See `anti-patterns.md` for the 7 bugs found and their fixes.
 
 ---

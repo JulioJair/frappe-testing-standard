@@ -2,8 +2,6 @@
 
 A systematic approach to writing reliable, idempotent tests for Frappe/ERPNext custom apps.
 
-Designed by [Julio Jair](https://github.com/julio-jair) based on an audit of 155 test files in a production Frappe app.
-
 ---
 
 ## The Problem
