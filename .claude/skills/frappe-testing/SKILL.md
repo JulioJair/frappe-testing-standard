@@ -551,6 +551,17 @@ Before writing a single line of code, answer:
 - What domain entities does it need? → determines which builders to use
 - What are the critical cases? → happy path + edge case + failure condition
 
+**Mock assertion check:** if the only way to verify correctness is `assert_called_once_with(set_value, ...)`, the function mixes logic with side effects. Before generating tests, flag this:
+
+> "This function mixes a calculation with a DB write. The test would only verify that `set_value` was called — not that the value is correct. I recommend extracting the calculation first:
+> ```python
+> def _calculate_X(inputs) -> float: ...  # pure, testable directly
+> def update_X(doc): frappe.db.set_value(..., _calculate_X(...))  # thin wrapper
+> ```
+> Want me to do the extraction, or generate mock-based tests as-is?"
+
+If the user declines the refactor, generate the mock-based test — but include a `# TODO: extract _calculate_X for behavior-level testing` comment in the test file.
+
 ### Step 2 — Test design
 
 Describe in plain language what each test method will do before writing it:
