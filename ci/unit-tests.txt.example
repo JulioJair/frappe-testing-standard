@@ -1,0 +1,28 @@
+# .github/unit-tests.txt
+#
+# List of test modules to run in CI (Strategy A only — no DB required).
+# One module path per line. Lines starting with # are ignored.
+#
+# Format: path/to/test_file.py
+#
+# Rules:
+#   - Only include Strategy A tests (mock-based, no frappe.db calls)
+#   - Do NOT include Strategy B or C tests here (they need a real site)
+#   - Add a module here when you add a new Strategy A test file
+#
+# Example:
+
+your_app/server/purchase_invoice/test_purchase_invoice.py
+your_app/server/sales_invoice/test_sales_invoice.py
+your_app/utils/test_date_utils.py
+your_app/utils/test_tax_calculator.py
+
+# You can organize with comments:
+
+# Payment processing
+your_app/server/payment_entry/test_payment_entry.py
+your_app/server/payment_entry/test_payment_validation.py
+
+# Electronic invoice
+your_app/server/electronic_invoice/test_xml_builder.py
+your_app/server/electronic_invoice/test_cfdi_utils.py
