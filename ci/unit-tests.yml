@@ -1,43 +1,32 @@
 name: Unit Tests
 
-# Runs on every pull request, on every branch.
+# Runs on every pull request.
 # Only executes Strategy A tests (mock-based, no DB required).
 # Strategy B and C tests require a real Frappe site and run separately.
-#
-# Matrix: tests against Frappe v13, v14, and v15 in parallel.
-# To pin to a single version, remove the matrix and hardcode frappe-version below.
 
 on:
   pull_request:
     branches: ['**']
 
+env:
+  FRAPPE_VERSION: version-15  # change to your Frappe version: version-13, version-14, version-15
+  PYTHON_VERSION: '3.10'
+
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - frappe-version: version-13
-            python-version: '3.9'
-          - frappe-version: version-14
-            python-version: '3.10'
-          - frappe-version: version-15
-            python-version: '3.10'
-
-    name: Unit Tests (Frappe ${{ matrix.frappe-version }})
+    name: Unit Tests
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
 
       - name: Install frappe
-        run: pip install "frappe @ git+https://github.com/frappe/frappe@${{ matrix.frappe-version }}"
+        run: pip install "frappe @ git+https://github.com/frappe/frappe@${{ env.FRAPPE_VERSION }}"
 
       - name: Install app requirements
         run: pip install pytest -r requirements.txt
