@@ -45,6 +45,18 @@ See template: `templates/strategy-a-unit.py`
 - `@patch` parameters are injected in **reverse** order of decorators (last decorator = first parameter).
 - When using `side_effect` with a list, document the call order with inline comments. If the internal function reorders its calls, the test breaks silently otherwise.
 - Do not call `frappe.db.rollback()` in `tearDown` — there is nothing to clean up.
+- **If a mock assertion is your only way to verify correctness, the function needs refactoring.** `assert_called_once_with(set_value, ...)` tests *how* the function works, not *what* it produces. Extract the calculation into a pure function and assert on its return value instead:
+
+  ```python
+  # ❌ Tests implementation — breaks on any internal refactor
+  mock_set.assert_called_once_with("Purchase Invoice", name, "field", 300.0)
+
+  # ✅ Tests behavior — extract the logic and assert the result directly
+  result = _calculate_new_prepayment_amount(current=500.0, credit_note=200.0, is_reversal=False)
+  self.assertEqual(result, 300.0)
+  ```
+
+  The need for a mock assertion is a signal, not a solution.
 - If the function under test calls `frappe.db.commit()` explicitly, mock it — an un-mocked commit persists data that a later `rollback()` cannot undo:
   ```python
   @patch("your_app.server.my_module.my_module.frappe.db.commit")

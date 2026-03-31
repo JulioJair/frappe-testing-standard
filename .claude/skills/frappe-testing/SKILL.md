@@ -124,6 +124,7 @@ class TestMyFunction(unittest.TestCase):
 - `@patch` parameters are injected in **reverse** order of decorators (last decorator = first parameter).
 - `side_effect` is positional: if the internal function reorders calls, the test breaks. Document the order with inline comments.
 - Do not use `frappe.db.rollback()` in tearDown — there is nothing to clean up.
+- **If a mock assertion is your only way to verify correctness, the function needs refactoring.** `assert_called_once_with(set_value, ...)` tests *how* the function works, not *what* it produces. Extract the calculation into a pure function and assert on its return value instead. The need for a mock assertion is a signal, not a solution.
 - Mock `frappe.db.commit` if the code under test calls it explicitly — an un-mocked commit persists data that `tearDown`'s rollback cannot undo:
 
 ```python
@@ -549,6 +550,23 @@ Before writing a single line of code, answer:
 - Does the function touch the DB or is it pure logic? → determines Strategy A or B
 - What domain entities does it need? → determines which builders to use
 - What are the critical cases? → happy path + edge case + failure condition
+
+**Mock assertion check:** if the only way to verify correctness is `assert_called_once_with(set_value, ...)`, pause and classify the function before proceeding:
+
+**Case 1 — logic mixed with side effects** (has a calculation inside):
+> "This function mixes a calculation with a DB write. I recommend extracting the calculation first:
+> ```python
+> def _calculate_X(inputs) -> float: ...  # pure, testable without mocks
+> def update_X(doc): frappe.db.set_value(..., _calculate_X(...))  # thin wrapper
+> ```
+> Want me to do the extraction, or generate mock-based tests as-is?"
+
+**Case 2 — pure side effect** (nothing to extract, e.g. `frappe.db.delete`, `frappe.db.set_value` with no calculation):
+> "This function is a pure side effect — there is no logic to extract. The correct test is Strategy B with a real DB. Do you have a test site available?"
+> - If yes → generate a Strategy B test
+> - If no → generate mock-based test with `# TODO: replace with Strategy B once test site is available`
+
+If the user declines the refactor in Case 1, generate the mock-based test with a `# TODO: extract _calculate_X for behavior-level testing` comment.
 
 ### Step 2 — Test design
 
