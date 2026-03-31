@@ -124,6 +124,7 @@ class TestMyFunction(unittest.TestCase):
 - `@patch` parameters are injected in **reverse** order of decorators (last decorator = first parameter).
 - `side_effect` is positional: if the internal function reorders calls, the test breaks. Document the order with inline comments.
 - Do not use `frappe.db.rollback()` in tearDown — there is nothing to clean up.
+- **If a mock assertion is your only way to verify correctness, the function needs refactoring.** `assert_called_once_with(set_value, ...)` tests *how* the function works, not *what* it produces. Extract the calculation into a pure function and assert on its return value instead. The need for a mock assertion is a signal, not a solution.
 - Mock `frappe.db.commit` if the code under test calls it explicitly — an un-mocked commit persists data that `tearDown`'s rollback cannot undo:
 
 ```python
