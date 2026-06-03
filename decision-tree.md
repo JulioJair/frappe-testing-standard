@@ -2,6 +2,34 @@
 
 ---
 
+## Step 0 — Before choosing a strategy
+
+Before picking A, B, or C, answer one question:
+
+**Can you verify the function's behavior without asserting on internal calls?**
+
+```
+Can the result be verified through a return value, a raised exception,
+or a DB state — without relying on assert_called_once_with()?
+│
+├─► Yes → Proceed to The rule below (A/B/C split)
+│
+├─► No — Case 1: logic mixed with side effects
+│   (there is a calculation buried in a DB write)
+│   └─► Extract the calculation as a pure function first, then test it directly.
+│       The DB write becomes a thin wrapper — no mock assertion needed.
+│
+└─► No — Case 2: pure side effect, nothing to extract
+    (e.g. frappe.db.delete, set_value with no calculation)
+    └─► Use Strategy B with a real DB. The observable result is the DB state,
+        not an internal call.
+```
+
+> A/B/C is *where the test runs*. Step 0 is *whether the code is shaped to be tested*.
+> Address Step 0 first — otherwise you are testing implementation, not behavior.
+
+---
+
 ## The rule
 
 ```
@@ -27,6 +55,12 @@ What does the function under test do?
         If yes, choose A or B above. If not, delete the file.
 ```
 
+> **Mocks are orthogonal to strategy choice.**
+> "Strategy A" means the test does not need a DB — not that it avoids mocks.
+> Mocking an external HTTP call is valid in Strategy A, B, or C.
+> A Strategy B test can mock an outbound payment gateway call while still hitting a real DB.
+> The strategy determines *the environment*; mocks handle *external boundaries*.
+
 ---
 
 ## Strategy A — Unit test with mocks
@@ -45,6 +79,29 @@ See template: `templates/strategy-a-unit.py`
 - `@patch` parameters are injected in **reverse** order of decorators (last decorator = first parameter).
 - When using `side_effect` with a list, document the call order with inline comments. If the internal function reorders its calls, the test breaks silently otherwise.
 - Do not call `frappe.db.rollback()` in `tearDown` — there is nothing to clean up.
+- **If a mock assertion is your only way to verify correctness, the function needs refactoring** (see Step 0 above). `assert_called_once_with(set_value, ...)` tests *how* the function works, not *what* it produces. Extract the calculation into a pure function and assert on its return value instead:
+
+  ```python
+  # ❌ Tests implementation — breaks on any internal refactor
+  mock_set.assert_called_once_with("Purchase Invoice", name, "field", 300.0)
+
+  # ✅ Tests behavior — extract the logic and assert the result directly
+  result = _calculate_new_prepayment_amount(current=500.0, credit_note=200.0, is_reversal=False)
+  self.assertEqual(result, 300.0)
+  ```
+
+  The need for a mock assertion is a signal, not a solution.
+
+  **When the mock cannot be removed** (genuine external dependency — HTTP call, email, PDF generation): keep it, but add a comment explaining why it is unavoidable. This prevents it from being read as unattended debt:
+
+  ```python
+  # Mock is unavoidable: frappe.sendmail triggers an SMTP connection in all environments.
+  # There is no return value to assert on — suppressing the side effect is the test.
+  @patch("your_app.server.my_module.my_module.frappe.sendmail")
+  def test_notification_sent(self, mock_mail):
+      my_function(doc)
+      mock_mail.assert_called_once()
+  ```
 - If the function under test calls `frappe.db.commit()` explicitly, mock it — an un-mocked commit persists data that a later `rollback()` cannot undo:
   ```python
   @patch("your_app.server.my_module.my_module.frappe.db.commit")
@@ -171,6 +228,23 @@ RUN_INTEGRATION_TESTS=1 bench --site your-test-site.localhost run-tests \
 ---
 
 ## What to test — business rules, not framework behavior
+
+### Tests call public API only
+
+A test is an external observer. It can only see what a caller outside the module can see.
+
+- **Never call a method that starts with `_` from a test.** Private methods are implementation details — testing them directly couples the test to the internals and breaks on any refactor, even when the observable behavior is unchanged.
+- If a `_private` method has logic that feels worth testing on its own, that is a signal it should be a public standalone function (a unit of behavior, not a unit of syntax).
+
+```python
+# ❌ Calls private implementation detail — breaks on rename or inline
+result = obj._calculate_discount(base=1000.0, rate=0.1)
+self.assertEqual(result, 900.0)
+
+# ✅ Call the public function that uses it — test the behavior contract
+result = apply_discount(order, discount_rate=0.1)
+self.assertEqual(result.total, 900.0)
+```
 
 ### Test ONLY this
 

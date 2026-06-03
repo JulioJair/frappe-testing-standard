@@ -1,6 +1,6 @@
 ---
 name: frappe-testing
-description: "Testing patterns and templates for Frappe/ERPNext custom apps. Use when writing, fixing, or reviewing tests. Covers unit tests (mock-based, Strategy A), integration tests (real DB with rollback, Strategy B), conditional tests (Strategy C), Test Data Builder pattern, base test class, test generation protocol, anti-patterns, and CI setup. Triggers: write test, add test, test coverage, fix failing test, setUp, tearDown, frappe.db.rollback, unittest, mock, patch, test site, bench run-tests, builder, create_supplier, create_item, create_purchase_order, base test class, FrappeTestCase, idempotent test, Duplicate Entry test, Strategy A, Strategy B."
+description: "Testing patterns and templates for Frappe/ERPNext custom apps. Use when writing, fixing, or reviewing tests. Covers unit tests (mock-based, Strategy A), integration tests (real DB with rollback, Strategy B), conditional tests (Strategy C), Test Data Builder pattern, base test class, test generation protocol, anti-patterns, and CI setup. Triggers: write test, add test, test coverage, fix failing test, setUp, tearDown, frappe.db.rollback, unittest, mock, patch, test site, bench run-tests, builder, create_supplier, create_item, create_purchase_order, base test class, FrappeTestCase, idempotent test, Duplicate Entry test, Strategy A, Strategy B, private method test, public API only, _underscore method test, test private method."
 ---
 
 # Frappe Testing Standard — Skill
@@ -51,6 +51,15 @@ What does the function under test do?
 └─► test_*.py file exists but is empty (placeholder)
     └─► Evaluate if the functionality deserves tests → if yes, choose A or B above
 ```
+
+> **Before applying this tree, run Step 0:** can you verify the result without `assert_called_once_with`?
+> If not, extract logic (Case 1) or go directly to Strategy B (Case 2).
+> See the test generation protocol in §12 for the full Case 1 / Case 2 decision.
+
+> **Mocks are orthogonal to strategy choice.**
+> "Strategy A" means no DB required — not that mocks are forbidden in other strategies.
+> Mocking an external HTTP call is valid in A, B, or C.
+> The strategy determines *the environment*; mocks handle *external boundaries*.
 
 ---
 
@@ -124,6 +133,14 @@ class TestMyFunction(unittest.TestCase):
 - `@patch` parameters are injected in **reverse** order of decorators (last decorator = first parameter).
 - `side_effect` is positional: if the internal function reorders calls, the test breaks. Document the order with inline comments.
 - Do not use `frappe.db.rollback()` in tearDown — there is nothing to clean up.
+- **If a mock assertion is your only way to verify correctness, the function needs refactoring** (see Step 0 in §2). `assert_called_once_with(set_value, ...)` tests *how* the function works, not *what* it produces. Extract the calculation into a pure function and assert on its return value instead. The need for a mock assertion is a signal, not a solution. **When the mock genuinely cannot be removed** (external HTTP, email, PDF), keep it and add a comment explaining why — so it reads as a deliberate choice, not forgotten debt:
+  ```python
+  # Mock is unavoidable: frappe.sendmail triggers SMTP in all environments.
+  @patch("your_app.server.my_module.my_module.frappe.sendmail")
+  def test_notification_sent(self, mock_mail):
+      my_function(doc)
+      mock_mail.assert_called_once()
+  ```
 - Mock `frappe.db.commit` if the code under test calls it explicitly — an un-mocked commit persists data that `tearDown`'s rollback cannot undo:
 
 ```python
@@ -500,6 +517,23 @@ Ensure you restore `Administrator` in tearDown (handled automatically by `Frappe
 
 ## 11. What to test — business rules, not Frappe internals
 
+### Tests call public API only
+
+A test is an external observer. It can only see what a caller outside the module can see.
+
+- **Never call a method that starts with `_` from a test.** Private methods are implementation details — coupling a test to them makes it fragile to any internal refactor, even when the observable behavior stays unchanged.
+- If a `_private` method has logic that feels worth testing on its own, that is a signal it should be a public standalone function (a unit of behavior, not a unit of syntax).
+
+```python
+# ❌ Calls private implementation — breaks on rename or inline
+result = obj._calculate_discount(base=1000.0, rate=0.1)
+self.assertEqual(result, 900.0)
+
+# ✅ Call the public function — test the behavior contract
+result = apply_discount(order, discount_rate=0.1)
+self.assertEqual(result.total, 900.0)
+```
+
 ### Test ONLY this
 
 - **Business rules:** validations, calculations, decisions, domain-specific transformations
@@ -549,6 +583,25 @@ Before writing a single line of code, answer:
 - Does the function touch the DB or is it pure logic? → determines Strategy A or B
 - What domain entities does it need? → determines which builders to use
 - What are the critical cases? → happy path + edge case + failure condition
+
+**Mock assertion check:** if the only way to verify correctness is `assert_called_once_with(set_value, ...)`, pause and classify the function before proceeding:
+
+**Case 1 — logic mixed with side effects** (has a calculation inside):
+> "This function mixes a calculation with a DB write. I recommend extracting the calculation first:
+> ```python
+> def _calculate_X(inputs) -> float: ...  # pure, testable without mocks
+> def update_X(doc): frappe.db.set_value(..., _calculate_X(...))  # thin wrapper
+> ```
+> Want me to do the extraction, or generate mock-based tests as-is?"
+
+**Case 2 — pure side effect** (nothing to extract, e.g. `frappe.db.delete`, `frappe.db.set_value` with no calculation):
+> "This function is a pure side effect — there is no logic to extract. The correct test is Strategy B with a real DB. Do you have a test site available?"
+> - If yes → generate a Strategy B test
+> - If no → generate mock-based test with `# TODO: replace with Strategy B once test site is available`
+
+If the user declines the refactor in Case 1, generate the mock-based test with a `# TODO: extract _calculate_X for behavior-level testing` comment.
+
+When generating a mock for a genuinely unavoidable external dependency (Case 2 "no test site", or any external service mock), always include a comment explaining why the mock cannot be removed. This prevents it from being read as unattended debt in future reviews.
 
 ### Step 2 — Test design
 
