@@ -28,6 +28,8 @@ echo "Installing Claude Code skill..."
 mkdir -p "$SKILL_DIR"
 curl -sS "$REPO/.claude/skills/frappe-testing/SKILL.md" -o "$SKILL_DIR/SKILL.md"
 echo "  ✓ $SKILL_DIR/SKILL.md"
+curl -sS "$REPO/.claude/skills/frappe-testing/anti-patterns.md" -o "$SKILL_DIR/anti-patterns.md"
+echo "  ✓ $SKILL_DIR/anti-patterns.md"
 
 # ── Full install (--full) ─────────────────────────────────────────────────────
 if [[ "$1" == "--full" ]]; then
