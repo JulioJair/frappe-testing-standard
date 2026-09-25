@@ -86,7 +86,7 @@ See template: `templates/strategy-a-unit.py`
   mock_set.assert_called_once_with("Purchase Invoice", name, "field", 300.0)
 
   # ✅ Tests behavior — extract the logic and assert the result directly
-  result = _calculate_new_prepayment_amount(current=500.0, credit_note=200.0, is_reversal=False)
+  result = _calculate_new_outstanding(current=500.0, credit_note=200.0, is_reversal=False)
   self.assertEqual(result, 300.0)
   ```
 
@@ -153,13 +153,13 @@ See template: `templates/strategy-b-integration.py`
 ```python
 # ✅ CORRECT
 def _create_test_zone(self):
-    if frappe.db.exists("Freight Zone", "ZONE-001"):   # same key
+    if frappe.db.exists("Service Zone", "ZONE-001"):   # same key
         return
     frappe.get_doc({"city": "ZONE-001", ...}).insert()
 
 # ❌ WRONG — the most common bug in Frappe test suites
 def _create_test_zone(self):
-    if frappe.db.exists("Freight Zone", {"name": "ZONE-002"}):  # DIFFERENT key
+    if frappe.db.exists("Service Zone", {"name": "ZONE-002"}):  # DIFFERENT key
         return
     frappe.get_doc({"city": "ZONE-001", ...}).insert()  # inserts ZONE-001 → Duplicate Entry
 ```
@@ -271,14 +271,14 @@ def test_supplier_can_be_inserted(self):
 
 # ✅ Tests a business rule
 def test_invoice_rejected_when_currency_mismatch(self):
-    # Rule: an XML in MXN cannot be applied to a PO in USD
-    cfdi = make_mock_cfdi(currency="MXN")
+    # Rule: an invoice in EUR cannot be applied to a PO in USD
+    invoice = make_mock_invoice(currency="EUR")
     po_data = make_mock_po(currency="USD")
 
-    result = validate_supplier_invoice(cfdi, po_data)
+    result = validate_supplier_invoice(invoice, po_data)
 
     self.assertFalse(result.is_valid)
-    self.assertIn("MXN", result.error)
+    self.assertIn("EUR", result.error)
     self.assertIn("USD", result.error)
 ```
 

@@ -12,14 +12,14 @@ Each one is shown with the real failure mode and the fix.
 ```python
 def _create_origin_zone(self):
     # ❌ Checks "ZONE-002" (destination) to decide whether to create "ZONE-001" (origin)
-    if frappe.db.exists("Freight Zone", {"name": "ZONE-002"}):
+    if frappe.db.exists("Service Zone", {"name": "ZONE-002"}):
         return
-    freight_zone = frappe.get_doc({
-        "doctype": "Freight Zone",
+    zone = frappe.get_doc({
+        "doctype": "Service Zone",
         "city": "ZONE-001",   # this is what gets inserted
         ...
     })
-    freight_zone.insert()
+    zone.insert()
 ```
 
 ### Why it breaks
@@ -36,14 +36,14 @@ def _create_origin_zone(self):
 ```python
 def _create_origin_zone(self):
     # ✅ Checks the SAME key it is about to insert
-    if frappe.db.exists("Freight Zone", "ZONE-001"):
+    if frappe.db.exists("Service Zone", "ZONE-001"):
         return
-    freight_zone = frappe.get_doc({
-        "doctype": "Freight Zone",
+    zone = frappe.get_doc({
+        "doctype": "Service Zone",
         "city": "ZONE-001",
         ...
     })
-    freight_zone.insert(ignore_permissions=True)
+    zone.insert(ignore_permissions=True)
 ```
 
 ---
@@ -53,14 +53,14 @@ def _create_origin_zone(self):
 ### Code with bug
 
 ```python
-freight_zone = frappe.get_doc({
-    "doctype": "Freight Zone",
+zone = frappe.get_doc({
+    "doctype": "Service Zone",
     "city": "ZONE-002",
     "postal_codes": [
-        {"doctype": "Freight Zone Postal Code", "name": "abc111", "postal_code": "10001"},
-        {"doctype": "Freight Zone Postal Code", "name": "abc222", "postal_code": "10002"},
-        {"doctype": "Freight Zone Postal Code", "name": "abc333", "postal_code": "10003"},
-        {"doctype": "Freight Zone Postal Code", "name": "abc333", "postal_code": "10004"},
+        {"doctype": "Service Zone Postal Code", "name": "abc111", "postal_code": "10001"},
+        {"doctype": "Service Zone Postal Code", "name": "abc222", "postal_code": "10002"},
+        {"doctype": "Service Zone Postal Code", "name": "abc333", "postal_code": "10003"},
+        {"doctype": "Service Zone Postal Code", "name": "abc333", "postal_code": "10004"},
         #                                         ^^^^^^^^^^^^^^^
         #                                         same name as the row above → IntegrityError
     ],
@@ -74,15 +74,15 @@ Frappe uses the `name` field as the primary key in child tables. Two child rows 
 ### Fix
 
 ```python
-freight_zone = frappe.get_doc({
-    "doctype": "Freight Zone",
+zone = frappe.get_doc({
+    "doctype": "Service Zone",
     "city": "ZONE-002",
     "postal_codes": [
         # ✅ No "name" field — Frappe generates a unique hash per row automatically
-        {"doctype": "Freight Zone Postal Code", "postal_code": "10001"},
-        {"doctype": "Freight Zone Postal Code", "postal_code": "10002"},
-        {"doctype": "Freight Zone Postal Code", "postal_code": "10003"},
-        {"doctype": "Freight Zone Postal Code", "postal_code": "10004"},
+        {"doctype": "Service Zone Postal Code", "postal_code": "10001"},
+        {"doctype": "Service Zone Postal Code", "postal_code": "10002"},
+        {"doctype": "Service Zone Postal Code", "postal_code": "10003"},
+        {"doctype": "Service Zone Postal Code", "postal_code": "10004"},
     ],
 })
 ```
@@ -104,26 +104,26 @@ Extract shared setup to a module of fixtures or builders:
 import frappe
 
 def create_origin_zone():
-    if frappe.db.exists("Freight Zone", "ZONE-001"):
+    if frappe.db.exists("Service Zone", "ZONE-001"):
         return
     frappe.get_doc({
-        "doctype": "Freight Zone",
+        "doctype": "Service Zone",
         "city": "ZONE-001",
         "postal_codes": [
-            {"doctype": "Freight Zone Postal Code", "postal_code": "10001"},
-            {"doctype": "Freight Zone Postal Code", "postal_code": "10002"},
+            {"doctype": "Service Zone Postal Code", "postal_code": "10001"},
+            {"doctype": "Service Zone Postal Code", "postal_code": "10002"},
         ],
     }).insert(ignore_permissions=True)
 
 def create_destination_zone():
-    if frappe.db.exists("Freight Zone", "ZONE-002"):
+    if frappe.db.exists("Service Zone", "ZONE-002"):
         return
     frappe.get_doc({
-        "doctype": "Freight Zone",
+        "doctype": "Service Zone",
         "city": "ZONE-002",
         "postal_codes": [
-            {"doctype": "Freight Zone Postal Code", "postal_code": "20001"},
-            {"doctype": "Freight Zone Postal Code", "postal_code": "20002"},
+            {"doctype": "Service Zone Postal Code", "postal_code": "20001"},
+            {"doctype": "Service Zone Postal Code", "postal_code": "20002"},
         ],
     }).insert(ignore_permissions=True)
 ```
@@ -187,10 +187,10 @@ def test_validate_normal_case(self):  # now runs
 @patch("your_app.server.my_module.my_module.frappe.db.get_value")
 def test_submit_reduces_outstanding(self, mock_get_value):
     mock_get_value.side_effect = [
-        "PI-PREPAY-001",  # ← which call is this?
+        "PI-0001",        # ← which call is this?
         1,                # ← and this?
         5000.0,           # ← and this?
-        "MXN",            # ← and this?
+        "EUR",            # ← and this?
     ]
 ```
 
@@ -202,10 +202,10 @@ Document the call order explicitly:
 
 ```python
 mock_get_value.side_effect = [
-    "PI-PREPAY-001",  # 1st call: get_value(doctype, name, "return_against")
-    1,                # 2nd call: get_value(doctype, name, "is_prepayment")
+    "PI-0001",        # 1st call: get_value(doctype, name, "return_against")
+    1,                # 2nd call: get_value(doctype, name, "is_return")
     5000.0,           # 3rd call: get_value(doctype, name, "outstanding_amount")
-    "MXN",            # 4th call: get_value("Company", company, "default_currency")
+    "EUR",            # 4th call: get_value("Company", company, "default_currency")
 ]
 ```
 
@@ -214,10 +214,10 @@ Or use a dict-based `side_effect` function for greater robustness:
 ```python
 def get_value_side_effect(doctype, name, fieldname, *args, **kwargs):
     data = {
-        ("Purchase Invoice", "PI-PREPAY-001", "return_against"): "PI-PREPAY-001",
-        ("Purchase Invoice", "PI-PREPAY-001", "is_prepayment"): 1,
-        ("Purchase Invoice", "PI-PREPAY-001", "outstanding_amount"): 5000.0,
-        ("Company", "My Company", "default_currency"): "MXN",
+        ("Purchase Invoice", "PI-0001", "return_against"): "PI-0001",
+        ("Purchase Invoice", "PI-0001", "is_return"): 1,
+        ("Purchase Invoice", "PI-0001", "outstanding_amount"): 5000.0,
+        ("Company", "My Company", "default_currency"): "EUR",
     }
     return data.get((doctype, name, fieldname))
 

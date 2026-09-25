@@ -222,13 +222,13 @@ class TestMyDocType(FrappeTestCase):
 ```python
 # ✅ CORRECT
 def _create_zone(self):
-    if frappe.db.exists("Freight Zone", "ZONE-001"):   # same key
+    if frappe.db.exists("Service Zone", "ZONE-001"):   # same key
         return
     frappe.get_doc({"city": "ZONE-001", ...}).insert()
 
 # ❌ WRONG — the most common bug in Frappe test suites
 def _create_zone(self):
-    if frappe.db.exists("Freight Zone", "ZONE-002"):   # DIFFERENT key
+    if frappe.db.exists("Service Zone", "ZONE-002"):   # DIFFERENT key
         return
     frappe.get_doc({"city": "ZONE-001", ...}).insert()  # Duplicate Entry on 2nd run
 ```
@@ -305,7 +305,7 @@ TEST_COMPANY   = "Test Company"
 TEST_CURRENCY  = "USD"
 
 # Generic tax ID placeholders (adjust for your country's format)
-TEST_TAX_ID_GENERIC = "GENERIC-TAX-ID"   # e.g. XAXX010101000 for Mexico
+TEST_TAX_ID_GENERIC = "GENERIC-TAX-ID"   # e.g. the public/generic tax ID used in your country
 TEST_TAX_ID_COMPANY = "COMPANY-TAX-ID"   # your test company's tax ID
 ```
 
@@ -560,13 +560,13 @@ def test_supplier_can_be_inserted(self):
 # ✅ Tests a business rule
 def test_invoice_rejected_when_currency_mismatch(self):
     doc = MagicMock()
-    doc.currency = "MXN"
+    doc.currency = "EUR"
     mock_get.return_value = "USD"  # PO currency
 
     with self.assertRaises(frappe.ValidationError) as ctx:
         validate_currency_match(doc)
 
-    self.assertIn("MXN", str(ctx.exception))
+    self.assertIn("EUR", str(ctx.exception))
     self.assertIn("USD", str(ctx.exception))
 ```
 

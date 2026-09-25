@@ -23,6 +23,6 @@ your_app/utils/test_tax_calculator.py
 your_app/server/payment_entry/test_payment_entry.py
 your_app/server/payment_entry/test_payment_validation.py
 
-# Electronic invoice
-your_app/server/electronic_invoice/test_xml_builder.py
-your_app/server/electronic_invoice/test_cfdi_utils.py
+# Document export
+your_app/server/document_export/test_xml_builder.py
+your_app/server/document_export/test_export_utils.py

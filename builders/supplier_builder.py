@@ -14,7 +14,7 @@ def create_supplier(**overrides) -> str:
 
     Usage:
         supplier = create_supplier()
-        supplier = create_supplier(supplier_name="Specific Vendor Ltd", country="Mexico")
+        supplier = create_supplier(supplier_name="Specific Vendor Ltd", country="Germany")
     """
     defaults = {
         "supplier_name": "Test Supplier",
