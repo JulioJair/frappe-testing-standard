@@ -5,6 +5,16 @@ Use when the function under test does not touch the DB.
 All frappe.db calls are replaced with unittest.mock.patch.
 
 This test runs without bench and without a database — suitable for CI.
+
+CI context (conftest.py):
+  Strategy A tests run under pytest in CI. The repo's conftest.py handles
+  frappe initialization at the session level — it calls frappe.init(), sets
+  frappe.local.session, and replaces frappe.db with a MagicMock. Because of
+  this, Strategy A test classes must NOT define setUp/tearDown that call
+  frappe.init(), frappe.destroy(), or frappe.set_user() — those are dead code
+  under both pytest (conftest.py runs first) and bench (frappe.local is already
+  initialized). Define setUp/tearDown only when the test itself needs per-test
+  state (e.g. building a shared MagicMock document).
 """
 import unittest
 from unittest.mock import patch, MagicMock
@@ -12,13 +22,6 @@ import frappe
 
 
 class TestMyFunction(unittest.TestCase):
-
-    def setUp(self):
-        frappe.set_user("Administrator")
-
-    def tearDown(self):
-        frappe.set_user("Administrator")
-        # No frappe.db.rollback() here — there is nothing to clean up.
 
     # ─── Happy path ───────────────────────────────────────────────────────────
 

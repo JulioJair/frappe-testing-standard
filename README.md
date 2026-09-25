@@ -49,8 +49,10 @@ The decision is deterministic. If you know what the function does, you know whic
 ```
 frappe-testing-standard/
 ├── README.md                         ← you are here
+├── .claude/skills/frappe-testing/
+│   ├── SKILL.md                      ← the Claude Code skill (packaged standard)
+│   └── anti-patterns.md              ← 7 real bugs found in production, with fixes
 ├── decision-tree.md                  ← full A/B/C guide with rules and examples
-├── anti-patterns.md                  ← 7 real bugs found in production, with fixes
 ├── templates/
 │   ├── strategy-a-unit.py            ← Strategy A template (mock-based)
 │   ├── strategy-b-integration.py     ← Strategy B template (real DB + rollback)
@@ -104,7 +106,7 @@ Copy `ci/unit-tests.yml` to `.github/workflows/unit-tests.yml`. Create a `.githu
 | Order-dependent test methods | Test B fails if Test A didn't run first |
 | Empty placeholder `test_*.py` files | False sense of coverage |
 
-See `anti-patterns.md` for each bug in detail, with real code and the fix.
+See the `anti-patterns.md` file bundled with the skill for each bug in detail, with real code and the fix.
 
 ---
 
